@@ -25,6 +25,11 @@ app.use(cookieParser())
 
 const port = process.env.PORT || 8000;
 
+
+app.get('/',(req,res)=>{
+  res.status(200).send("Working Fine")
+})
+
 app.listen(port, () => console.log("Server running on port 8000"));
 
 app.use("/api/v1/employee",employeeRoute)

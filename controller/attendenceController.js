@@ -1,7 +1,7 @@
 var cron = require("node-cron");
 const AttendenceModal = require("../modal/AttendenceModal");
 const EmployeeModal = require("../modal/EmployeeModal");
-
+const moment = require("moment");
 exports.clockIn = async (req, res) => {
   try {
     const employee = req.employee._id;
@@ -57,114 +57,119 @@ exports.clockOut = async (req, res) => {
   }
 };
 
-  exports.attendenceStatus = async (req, res) => {
-    try {
-      const employee = req.employee._id;
-      const clockedIn = await AttendenceModal.findOne({
-        employee,
-        date: new Date().toDateString(),
-      });
+exports.attendenceStatus = async (req, res) => {
+  try {
+    const employee = req.employee._id;
+    const clockedIn = await AttendenceModal.findOne({
+      employee,
+      date: new Date().toDateString(),
+    });
 
-      const totalWorkHoursInMonth = await AttendenceModal.aggregate([
-        {
-          $match: {
-            date: {
-              $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-            },
+    const totalWorkHoursInMonth = await AttendenceModal.aggregate([
+      {
+        $match: {
+          date: {
+            $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
           },
         },
-        {
-          $match: {
-            employee: req.employee._id,
+      },
+      {
+        $match: {
+          employee: req.employee._id,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalWorkHours: { $sum: "$totalWorkHours" },
+        },
+      },
+    ]);
+    const totalOvertimeInMonth = await AttendenceModal.aggregate([
+      {
+        $match: {
+          date: {
+            $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
           },
         },
-        {
-          $group: {
-            _id: null,
-            totalWorkHours: { $sum: "$totalWorkHours" },
+      },
+      {
+        $match: {
+          employee: req.employee._id,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          overtime: { $sum: "$overtime" },
+        },
+      },
+    ]);
+    const totalWorkHoursInWeek = await AttendenceModal.aggregate([
+      {
+        $match: {
+          date: {
+            $gte: new Date(
+              new Date().getFullYear(),
+              new Date().getMonth(),
+              new Date().getDate() - new Date().getDay()
+            ),
           },
         },
-      ]);
-      const totalOvertimeInMonth = await AttendenceModal.aggregate([
-        {
-          $match: {
-            date: {
-              $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-            },
-          },
+      },
+      {
+        $match: {
+          employee: req.employee._id,
         },
-        {
-          $match: {
-            employee: req.employee._id,
-          },
+      },
+      {
+        $group: {
+          _id: null,
+          totalWorkHours: { $sum: "$totalWorkHours" },
         },
-        {
-          $group: {
-            _id: null,
-            overtime: { $sum: "$overtime" },
-          },
-        },
-      ]);
-      const totalWorkHoursInWeek = await AttendenceModal.aggregate([
-        {
-          $match: {
-            date: { $gte: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - new Date().getDay()) },
-          },
-        },
-        {
-          $match: {
-            employee: req.employee._id,
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            totalWorkHours: { $sum: "$totalWorkHours" },
-          },
-        },
-      ]);
-      console.log(totalWorkHoursInMonth);
-      if (clockedIn?.clockOut) {
-        return res.status(200).send({
-          data: clockedIn,
-          workInMonth:totalWorkHoursInMonth[0].totalWorkHours,
-          workInWeek:totalWorkHoursInWeek[0].totalWorkHours,
-          overtimeInMonth:totalOvertimeInMonth[0].overtime,
-          message: "Employee clockout already",
-          clockin: true,
-          clockout: true,
-        });
-      }
-      if (clockedIn) {
-        return res.status(200).send({
-          data: clockedIn,
-          workInMonth:totalWorkHoursInMonth[0].totalWorkHours,
-          workInWeek:totalWorkHoursInWeek[0].totalWorkHours,
-          overtimeInMonth:totalOvertimeInMonth[0].overtime,
-          message: "Employee clocked In already",
-          clockin: true,
-          clockout: false,
-        });
-      } else {
-        res.status(200).send({
-          data: clockedIn,
-          workInMonth:totalWorkHoursInMonth[0].totalWorkHours,
-          workInWeek:totalWorkHoursInWeek[0].totalWorkHours,
-          overtimeInMonth:totalOvertimeInMonth[0].overtime,
-          message: "Employee not clocked In",
-          clockin: false,
-          clockout: false,
-        });
-      }
-    } catch (err) {
-      console.log(err);
-      res.status(500).json({ error: err.message });
+      },
+    ]);
+    console.log(totalWorkHoursInMonth);
+    if (clockedIn?.clockOut) {
+      return res.status(200).send({
+        data: clockedIn,
+        workInMonth: totalWorkHoursInMonth[0].totalWorkHours,
+        workInWeek: totalWorkHoursInWeek[0].totalWorkHours,
+        overtimeInMonth: totalOvertimeInMonth[0].overtime,
+        message: "Employee clockout already",
+        clockin: true,
+        clockout: true,
+      });
     }
-  };
+    if (clockedIn) {
+      return res.status(200).send({
+        data: clockedIn,
+        workInMonth: totalWorkHoursInMonth[0].totalWorkHours,
+        workInWeek: totalWorkHoursInWeek[0].totalWorkHours,
+        overtimeInMonth: totalOvertimeInMonth[0].overtime,
+        message: "Employee clocked In already",
+        clockin: true,
+        clockout: false,
+      });
+    } else {
+      res.status(200).send({
+        data: clockedIn,
+        workInMonth: totalWorkHoursInMonth[0].totalWorkHours,
+        workInWeek: totalWorkHoursInWeek[0].totalWorkHours,
+        overtimeInMonth: totalOvertimeInMonth[0].overtime,
+        message: "Employee not clocked In",
+        clockin: false,
+        clockout: false,
+      });
+    }
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: err.message });
+  }
+};
 
 exports.getAttendence = async (req, res) => {
   try {
-    console.log(req.query.year);
     const attendences = await AttendenceModal.aggregate([
       {
         $match: {
@@ -187,6 +192,49 @@ exports.getAttendence = async (req, res) => {
       },
     ]);
     res.status(200).send(attendences);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.editAttendence = async (req, res) => {
+  try {
+    console.log(req.query.id);
+    const update = await AttendenceModal.findByIdAndUpdate(
+      req.query.id,
+      {
+        editClockIn: moment(req.body.editClockIn, "HH:mm").toDate(),
+        editClockOut: moment(req.body.editClockOut, "HH:mm").toDate(),
+        editReason: req.body.editReason,
+        editStatus: req.body.editStatus,
+      },
+      { new: true }
+    );
+    res.status(201).send(update);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.attendencerequest = async (req, res) => {
+  try {
+    const attendenceChangeRequest = await AttendenceModal.find({
+      editStatus: { $in: ["Pending", "Rejected", "Approved"] },
+    }).populate("employee");
+    res.status(200).send(attendenceChangeRequest);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateAttendenceRequest = async (req, res) => {
+  try {
+    const updateRequest = await AttendenceModal.findByIdAndUpdate(
+      req.query.id,
+      { editStatus: req.query.status },
+      { new: true }
+    );
+    res.status(201).json({updateRequest,message:"Request change Successfully"})
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

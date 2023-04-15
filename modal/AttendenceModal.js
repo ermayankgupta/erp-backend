@@ -39,18 +39,31 @@ const attendenceSchema = mongoose.Schema({
     ],
     default: "Absent",
   },
+  editClockIn:{
+    type:Date,
+  },
+  editClockOut:{
+    type:Date,
+  },
+  editReason:{
+    type:String,
+  },
+  editStatus:{
+    type:String,
+    enum: ['Pending',"Rejected","Approved"]
+  },
 });
 
 attendenceSchema.pre("save", async function (next) {
   if (this.clockIn && this.clockOut) {
     const workHour = (this.clockOut - this.clockIn) / (1000 * 60 * 60);
     this.totalWorkHours = workHour;
-    if (workHour >= 9) {
+    if (workHour >= 8.5) {
       this.overtime = workHour - 9;
       this.status = "Present";
-    } else if (workHour >= 6) {
+    } else if (workHour >= 5.5) {
       this.status = "ShortLeave";
-    } else if (workHour >= 4) {
+    } else if (workHour >= 3.5) {
       this.status = "HalfDay";
     } else {
       this.status = "Absent";
