@@ -11,6 +11,14 @@
     {
       "src": "/(.*)",
       "dest": "/index.js"
+    },
+    {
+      "src": "/",
+      "dest": "/index.js"
+    },
+    {
+      "src": "/api/v1/holiday",
+      "dest": "/index.js"
     }
   ]
 }
